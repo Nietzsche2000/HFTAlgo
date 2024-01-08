@@ -1,29 +1,62 @@
-This script is designed to collect, process, and analyze market data from Steam, specifically focusing on Counter-Strike: Global Offensive (CS:GO) items. It fetches historical price data, calculates various statistics like elasticity and percent changes, and merges data from different sources for comprehensive analysis.
 
-Key Features
-Data Collection: Fetches historical market data from Steam.
-Elasticity Calculation: Computes price elasticity based on average prices and volumes.
-Percent Change Computation: Calculates day-to-day and week-to-week percent changes in prices.
-Dataframe Update: Enhances data with new metrics and US holiday information.
-Data Merging: Merges and preprocesses data from different CS:GO related data sources.
+# ReadMe for GitHub Project: Steam Market Data Analysis Script
 
-Dependencies
-Python 3.x
-requests: For HTTP requests to fetch market data.
-json: To parse JSON data.
-pandas: For data manipulation and analysis.
-datetime: To handle dates and times.
-pandas.tseries.holiday: To handle US federal holidays.
+## Project Title
+Steam Market Data Analysis Script
 
-How to Run
-Ensure all dependencies are installed.
-Replace cookie and game_id in the main() function with appropriate values.
-Run the script using a Python interpreter.
+## Description
+This Python script is dedicated to fetching, processing, and analyzing market data for Counter-Strike: Global Offensive (CS:GO) items on Steam. It includes functionalities like calculating price elasticity, percent changes, merging datasets, and updating data with U.S. holiday information.
 
-Functions Overview
-calculate_elasticity(df, start_date, end_date): Calculates average price and volume within a given date range.
-calculate_percent_change(current_price, comparison_price): Computes the percent change between two prices.
-update_dataframe(df, holidays): Updates the dataframe with new metrics such as elasticity and percent changes.
-fetch_price_history(game_id, item_name, cookie): Fetches historical price data from Steam.
-preprocess_and_merge_csgo_tables(df1, df2): Merges and preprocesses two dataframes with CS:GO data.
-main(): Main function to run the script.
+## Table of Contents
+1. [Project Description](#project-description)
+2. [Features](#features)
+3. [Installation](#installation)
+4. [Usage](#usage)
+5. [Contributing](#contributing)
+6. [Credits](#credits)
+7. [License](#license)
+
+## Features
+- **Historical Data Collection**: Fetches data from Steam's market.
+- **Elasticity and Percent Change Calculations**: Computes various financial metrics.
+- **Dataframe Updates**: Enhances dataframes with new metrics and holiday information.
+- **Data Merging**: Combines data from multiple CS:GO sources for detailed analysis.
+
+## Installation
+This script requires Python 3.x and the following libraries: `requests`, `json`, `pandas`, `datetime`, and `pandas.tseries.holiday`. Install them using pip:
+```bash
+pip install requests pandas
+```
+
+## Usage
+To run the script:
+1. Update the `cookie` and `game_id` in the `main()` function with your credentials.
+2. Execute the script in a Python environment.
+Example:
+```python
+cookie = {'steamLoginSecure': 'your_cookie_here'}
+game_id = '730'
+main()
+```
+
+## Contributing
+Contributions to improve the script are welcome. Please follow these steps:
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature-branch`).
+3. Make your changes and commit them (`git commit -am 'Add some feature'`).
+4. Push to the branch (`git push origin feature-branch`).
+5. Create a new Pull Request.
+
+## Credits
+- **Author**: [Your Name]
+- **Contributors**: List of contributors or link to the contributors page.
+- For tutorials or external resources used, provide appropriate acknowledgments and links.
+
+## License
+This project is licensed under the [MIT License](LICENSE.md). A copy of the license is provided in the repository.
+
+---
+
+**Note**: Keep your README updated. This file is a starting point and should evolve with your project. Use clear and concise language to make it accessible to a wide audience. Happy Coding!
+
+*For more information or to report issues, please visit the [GitHub Repository](Your GitHub Repository Link).*

@@ -61,9 +61,9 @@ def fetch_price_history(game_id, item_name, cookie):
     df.sort_values(by='date', inplace=True)
 
     # Initialize columns for elasticity and percentage change
-    df['elasticity'] = 0
-    df['percent_change_7_days'] = 0
-    df['percent_change_1_day'] = 0
+    df['elasticity'] = 0.0
+    df['percent_change_7_days'] = 0.0
+    df['percent_change_1_day'] = 0.0
 
     for index, row in df.iterrows():
         # Define the start date for the 60-day window
@@ -83,7 +83,7 @@ def fetch_price_history(game_id, item_name, cookie):
 
             # Calculate elasticity for the current day
             elasticity = percentage_change_volume / percentage_change_price if percentage_change_price != 0 else 0
-            df.at[index, 'elasticity'] = elasticity
+            df.at[index, 'elasticity'] = float(elasticity)
             # Define the date for comparison (7 days prior or earliest available)
             earliest_date = df['date'].min()
             start_date_7_days = max(row['date'] - timedelta(days=7), earliest_date)
@@ -98,7 +98,7 @@ def fetch_price_history(game_id, item_name, cookie):
                     percent_change = ((row['price'] - price_comparison_date) / price_comparison_date) * 100
                 else:
                     percent_change = 0
-                df.at[index, 'percent_change_7_days'] = percent_change
+                df.at[index, 'percent_change_7_days'] = float(percent_change)
 
     # Define the previous day
             previous_day = row['date'] - timedelta(days=1)
@@ -113,8 +113,8 @@ def fetch_price_history(game_id, item_name, cookie):
                     percent_change_1_day = ((row['price'] - price_previous_day) / price_previous_day) * 100
                 else:
                     percent_change_1_day = 0
-                df.at[index, 'percent_change_1_day'] = percent_change_1_day
-    
+                df.at[index, 'percent_change_1_day'] = float(percent_change_1_day)
+        
     return df
 def main():
     cookie = {'steamLoginSecure': '76561198285682461%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MERENF8yMzkwMURBQ19GMUMwOCIsICJzdWIiOiAiNzY1NjExOTgyODU2ODI0NjEiLCAiYXVkIjogWyAid2ViIiBdLCAiZXhwIjogMTcwNDc5NTk1MCwgIm5iZiI6IDE2OTYwNjkxMzcsICJpYXQiOiAxNzA0NzA5MTM3LCAianRpIjogIjBERDBfMjNBQkNFQjRfQTFENTAiLCAib2F0IjogMTcwMTMwODIxNSwgInJ0X2V4cCI6IDE3MTkzNDk1MDksICJwZXIiOiAwLCAiaXBfc3ViamVjdCI6ICIxMzUuMTgwLjE5OS4yMzkiLCAiaXBfY29uZmlybWVyIjogIjEzNS4xODAuMTk5LjIzOSIgfQ.9vVEWTygSc6CWsgj5TPQvTCJL4fxcOlF3xDbOvnKobZI_b2FWGw7-Co0gx_2im33h7ofw25Qsb0fp0GzXYUbBg'}  # Replace with your actual cookie

@@ -3,6 +3,7 @@ import json
 import pandas as pd
 from datetime import datetime
 from datetime import timedelta
+from pandas.tseries.holiday import USFederalHolidayCalendar
 
 def get_all_item_names(game_id, cookie):
     item_names = []
@@ -64,7 +65,12 @@ def fetch_price_history(game_id, item_name, cookie):
     df['elasticity'] = 0.0
     df['percent_change_7_days'] = 0.0
     df['percent_change_1_day'] = 0.0
+    df['US_Holiday'] = False
 
+    start_year = df['date'].min().year
+    end_year = df['date'].max().year
+    cal = USFederalHolidayCalendar()
+    holidays = cal.holidays(start=f'{start_year}-01-01', end=f'{end_year}-12-31')
     for index, row in df.iterrows():
         # Define the start date for the 60-day window
         start_date = row['date'] - timedelta(days=60)
@@ -114,7 +120,8 @@ def fetch_price_history(game_id, item_name, cookie):
                 else:
                     percent_change_1_day = 0
                 df.at[index, 'percent_change_1_day'] = float(percent_change_1_day)
-        
+        if row['date'] in holidays:
+            df.at[index, 'US_Holiday'] = True
     return df
 def main():
     cookie = {'steamLoginSecure': '76561198285682461%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MERENF8yMzkwMURBQ19GMUMwOCIsICJzdWIiOiAiNzY1NjExOTgyODU2ODI0NjEiLCAiYXVkIjogWyAid2ViIiBdLCAiZXhwIjogMTcwNDc5NTk1MCwgIm5iZiI6IDE2OTYwNjkxMzcsICJpYXQiOiAxNzA0NzA5MTM3LCAianRpIjogIjBERDBfMjNBQkNFQjRfQTFENTAiLCAib2F0IjogMTcwMTMwODIxNSwgInJ0X2V4cCI6IDE3MTkzNDk1MDksICJwZXIiOiAwLCAiaXBfc3ViamVjdCI6ICIxMzUuMTgwLjE5OS4yMzkiLCAiaXBfY29uZmlybWVyIjogIjEzNS4xODAuMTk5LjIzOSIgfQ.9vVEWTygSc6CWsgj5TPQvTCJL4fxcOlF3xDbOvnKobZI_b2FWGw7-Co0gx_2im33h7ofw25Qsb0fp0GzXYUbBg'}  # Replace with your actual cookie

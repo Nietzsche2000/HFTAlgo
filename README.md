@@ -36,6 +36,7 @@ Example:
 ```python
 cookie = {'steamLoginSecure': 'your_cookie_here'}
 game_id = '730'
+item_name = 'AWP | Neo-Noir (Factory New)'
 main()
 ```
 
@@ -49,8 +50,6 @@ Contributions to improve the script are welcome. Please follow these steps:
 
 ## Credits
 - **Author**: [Ryan Soohoo, Monishwaren Maheswaran]
-- **Contributors**: List of contributors or link to the contributors page.
-- For tutorials or external resources used, provide appropriate acknowledgments and links.
 
 ## License
 This project is licensed under the [MIT License](LICENSE.md). A copy of the license is provided in the repository.

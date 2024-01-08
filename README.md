@@ -12,9 +12,8 @@ This Python script is dedicated to fetching, processing, and analyzing market da
 2. [Features](#features)
 3. [Installation](#installation)
 4. [Usage](#usage)
-5. [Contributing](#contributing)
-6. [Credits](#credits)
-7. [License](#license)
+5. [Credits](#credits)
+6. [License](#license)
 
 ## Features
 - **Historical Data Collection**: Fetches data from Steam's market.

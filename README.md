@@ -35,6 +35,7 @@ To run the script:
 3. Output is in the same folder as 2 csv files.
    
 date_csgo_marketplace -> just marketplace data
+
 date_combined_csgo_data -> marketplace data and csgo game play data
 
 Example:

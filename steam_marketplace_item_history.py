@@ -1,36 +1,46 @@
 import requests
 import json
 import pandas as pd
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
+from pandas.tseries.holiday import USFederalHolidayCalendar
 
-def get_all_item_names(game_id, cookie):
-    item_names = []
-    start = 0
-    count = 100
-    total_items = 10
-    iteration = 0  # New variable to count iterations
-    number_of_iterations = 10
-    while total_items is None or start < total_items:
-        if iteration >= number_of_iterations:  # Check if 10 iterations have been done
-            break
+def calculate_elasticity(df, start_date, end_date):
+    data_window = df[(df['date'] <= end_date) & (df['date'] > start_date)]
+    if not data_window.empty:
+        avg_price = data_window['price'].mean()
+        avg_volume = data_window['volume'].mean()
+        return avg_price, avg_volume
+    return None, None
 
-        url = f'https://steamcommunity.com/market/search/render/?search_descriptions=0&sort_column=default&sort_dir=desc&appid={game_id}&norender=1&count={count}&start={start}'
-        response = requests.get(url, cookies=cookie)
-        if response.status_code != 200:
-            break
+def calculate_percent_change(current_price, comparison_price):
+    if comparison_price != 0:
+        return ((current_price - comparison_price) / comparison_price) * 100
+    return 0
 
-        data = json.loads(response.content)
-        if total_items is None:
-            total_items = data['total_count']
+def update_dataframe(df, holidays):
+    for index, row in df.iterrows():
+        # Elasticity
+        start_date = row['date'] - timedelta(days=60)
+        avg_price, avg_volume = calculate_elasticity(df, start_date, row['date'])
+        if avg_price is not None and avg_volume is not None:
+            percentage_change_price = calculate_percent_change(row['price'], avg_price)
+            percentage_change_volume = calculate_percent_change(row['volume'], avg_volume)
+            df.at[index, 'elasticity'] = percentage_change_volume / percentage_change_price if percentage_change_price != 0 else 0
+        
+        # Percent Change 7 Days
+        start_date_7_days = max(row['date'] - timedelta(days=7), df['date'].min())
+        data_comparison_date = df[df['date'] <= start_date_7_days].tail(1)
+        if not data_comparison_date.empty:
+            df.at[index, 'percent_change_7_days'] = calculate_percent_change(row['price'], data_comparison_date.iloc[0]['price'])
 
-        for item in data['results']:
-            item_names.append(item['hash_name'])
-        print("getting item name:" + item['hash_name'])
-        start += count
-        iteration += 1  # Increment the iteration counter
+        # Percent Change 1 Day
+        previous_day = row['date'] - timedelta(days=1)
+        data_previous_day = df[df['date'] == previous_day]
+        if not data_previous_day.empty:
+            df.at[index, 'percent_change_1_day'] = calculate_percent_change(row['price'], data_previous_day.iloc[0]['price'])
 
-    return item_names
+        # US Holiday
+        df.at[index, 'US_Holiday'] = row['date'] in holidays
 
 def fetch_price_history(game_id, item_name, cookie):
     item_name_encoded = requests.utils.quote(item_name)
@@ -43,64 +53,47 @@ def fetch_price_history(game_id, item_name, cookie):
     if not data or 'prices' not in data:
         return None
 
-    price_history = []
-    for entry in data['prices']:
-        date_obj = datetime.strptime(entry[0][0:11], '%b %d %Y')
-        day_of_week = date_obj.strftime('%a').upper()  # Get the day of the week in uppercase
-        price_history.append({
-            'date': date_obj, 
-            'day_of_week': day_of_week,  # Add the day of the week to the dictionary
-            'price': float(entry[1]), 
-            'volume': int(entry[2])
-        })
-        
-    # Convert to DataFrame
+    price_history = [{'date': datetime.strptime(entry[0][0:11], '%b %d %Y'),
+                      'price': float(entry[1]), 
+                      'volume': int(entry[2])} for entry in data['prices']]
+    
     df = pd.DataFrame(price_history)
-
-    # Sort the DataFrame by date
     df.sort_values(by='date', inplace=True)
+    df['elasticity'] = 0.0
+    df['percent_change_7_days'] = 0.0
+    df['percent_change_1_day'] = 0.0
+    df['US_Holiday'] = False
 
-    # Initialize columns for elasticity and percentage change
-    df['elasticity'] = 0
-    df['percent_change_7_days'] = 0
+    start_year, end_year = df['date'].min().year, df['date'].max().year
+    cal = USFederalHolidayCalendar()
+    holidays = cal.holidays(start=f'{start_year}-01-01', end=f'{end_year}-12-31')
 
-    for index, row in df.iterrows():
-        # Define the start date for the 60-day window
-        start_date = row['date'] - timedelta(days=60)
+    update_dataframe(df, holidays)
 
-        # Filter data for this 60-day window
-        data_60_days = df[(df['date'] <= row['date']) & (df['date'] > start_date)]
-
-        if not data_60_days.empty:
-            # Calculate average price and volume for the 60-day window
-            avg_price_60_days = data_60_days['price'].mean()
-            avg_volume_60_days = data_60_days['volume'].mean()
-
-            # Compute percentage changes compared to the current day
-            percentage_change_price = ((row['price'] - avg_price_60_days) / avg_price_60_days) * 100 if avg_price_60_days != 0 else 0
-            percentage_change_volume = ((row['volume'] - avg_volume_60_days) / avg_volume_60_days) * 100 if avg_volume_60_days != 0 else 0
-
-            # Calculate elasticity for the current day
-            elasticity = percentage_change_volume / percentage_change_price if percentage_change_price != 0 else 0
-            df.at[index, 'elasticity'] = elasticity
-            # Define the date for comparison (7 days prior or earliest available)
-            earliest_date = df['date'].min()
-            start_date_7_days = max(row['date'] - timedelta(days=7), earliest_date)
-
-            # Find the price from the comparison date
-            data_comparison_date = df[df['date'] <= start_date_7_days].tail(1)
-
-            if not data_comparison_date.empty:
-                price_comparison_date = data_comparison_date.iloc[0]['price']
-                # Calculate percentage change
-                if price_comparison_date != 0:
-                    percent_change = ((row['price'] - price_comparison_date) / price_comparison_date) * 100
-                else:
-                    percent_change = 0
-                df.at[index, 'percent_change_7_days'] = percent_change
-
-        print("current: " + item_name)
     return df
+
+def preprocess_and_merge_csgo_tables(df1, df2):
+    """
+    Preprocesses and merges two dataframes based on the year and month.
+    The first dataframe is expected to have a 'Month' column with some non-standard date formats.
+    The second dataframe is expected to have a 'date' column in a standard format like '2018-12-06'.
+    """
+    # Remove non-standard date formats from 'Month' column
+    df1 = df1[df1['Month'].str.contains(r'\b\d{4}\b')]  # Keeping rows with a four-digit year
+
+    # Convert 'Month' column to datetime format
+    df1['YearMonth'] = pd.to_datetime(df1['Month']).dt.to_period('M')
+
+    # Convert 'date' column to datetime format and extract year-month
+    df2['YearMonth'] = pd.to_datetime(df2['date']).dt.to_period('M')
+
+    # Merging the two dataframes based on the YearMonth column
+    merged_df = pd.merge(df1, df2, on='YearMonth', how='outer')
+
+    return merged_df
+
+# Main function and other parts of the script remain unchanged.
+
 def main():
     cookie = {'steamLoginSecure': '76561198285682461%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MERENF8yMzkwMURBQ19GMUMwOCIsICJzdWIiOiAiNzY1NjExOTgyODU2ODI0NjEiLCAiYXVkIjogWyAid2ViIiBdLCAiZXhwIjogMTcwNDc5NTk1MCwgIm5iZiI6IDE2OTYwNjkxMzcsICJpYXQiOiAxNzA0NzA5MTM3LCAianRpIjogIjBERDBfMjNBQkNFQjRfQTFENTAiLCAib2F0IjogMTcwMTMwODIxNSwgInJ0X2V4cCI6IDE3MTkzNDk1MDksICJwZXIiOiAwLCAiaXBfc3ViamVjdCI6ICIxMzUuMTgwLjE5OS4yMzkiLCAiaXBfY29uZmlybWVyIjogIjEzNS4xODAuMTk5LjIzOSIgfQ.9vVEWTygSc6CWsgj5TPQvTCJL4fxcOlF3xDbOvnKobZI_b2FWGw7-Co0gx_2im33h7ofw25Qsb0fp0GzXYUbBg'}  # Replace with your actual cookie
     game_id = '730'  # Example: Counter-Strike: Global Offensive
@@ -115,15 +108,30 @@ def main():
             price_data['item_name'] = item_name
             all_data.append(price_data)
 
+    # Fetch and preprocess the CS:GO data
     full_data = pd.concat(all_data)
     full_data.to_csv(f'{game_id}_market_data.csv', index=False)
     print("Data collection complete. CSV file created.")
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    filename = f"{current_date}_csgo_marketplace.csv"
-    full_path = f"C:\\Users\\ryans\\{filename}"
 
-    full_data.to_csv(full_path, index=False)
-    print(f"Data collection complete. CSV file created at {full_path}")
+    # Define the file paths
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    marketplace_filename = f"{current_date}_csgo_marketplace.csv"
+    marketplace_full_path = f"C:\\Users\\ryans\\{marketplace_filename}"
+    full_data.to_csv(marketplace_full_path, index=False)
+    print(f"Data collection complete. CSV file created at {marketplace_full_path}")
+
+    # Load the second CSV file
+    month_play_filename = "C:\\Users\\ryans\\Downloads\\csgo_month_play (1).csv"
+    month_play_data = pd.read_csv(month_play_filename)
+
+    # Preprocess and merge the tables
+    combined_data = preprocess_and_merge_csgo_tables(month_play_data,full_data)
+
+    # Save the combined data to a CSV file
+    combined_filename = f"{current_date}_combined_csgo_data.csv"
+    combined_full_path = f"C:\\Users\\ryans\\{combined_filename}"
+    combined_data.to_csv(combined_full_path, index=False)
+    print(f"Combined data saved to {combined_full_path}")
 
 if __name__ == "__main__":
     main()

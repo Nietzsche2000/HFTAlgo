@@ -32,6 +32,9 @@ pip install requests pandas
 To run the script:
 1. Update the `cookie` and `game_id` in the `main()` function with your credentials.
 2. Execute the script in a Python environment.
+3. Output is in the same folder as 2 csv files.
+date_csgo_marketplace -> just marketplace data
+date_combined_csgo_data -> marketplace data and csgo game play data
 Example:
 ```python
 cookie = {'steamLoginSecure': 'your_cookie_here'}

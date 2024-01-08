@@ -63,6 +63,7 @@ def fetch_price_history(game_id, item_name, cookie):
     # Initialize columns for elasticity and percentage change
     df['elasticity'] = 0
     df['percent_change_7_days'] = 0
+    df['percent_change_1_day'] = 0
 
     for index, row in df.iterrows():
         # Define the start date for the 60-day window
@@ -99,7 +100,21 @@ def fetch_price_history(game_id, item_name, cookie):
                     percent_change = 0
                 df.at[index, 'percent_change_7_days'] = percent_change
 
-        print("current: " + item_name)
+    # Define the previous day
+            previous_day = row['date'] - timedelta(days=1)
+
+            # Find the price from the previous day
+            data_previous_day = df[df['date'] == previous_day]
+
+            if not data_previous_day.empty:
+                price_previous_day = data_previous_day.iloc[0]['price']
+                # Calculate percentage change from previous day
+                if price_previous_day != 0:
+                    percent_change_1_day = ((row['price'] - price_previous_day) / price_previous_day) * 100
+                else:
+                    percent_change_1_day = 0
+                df.at[index, 'percent_change_1_day'] = percent_change_1_day
+    
     return df
 def main():
     cookie = {'steamLoginSecure': '76561198285682461%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MERENF8yMzkwMURBQ19GMUMwOCIsICJzdWIiOiAiNzY1NjExOTgyODU2ODI0NjEiLCAiYXVkIjogWyAid2ViIiBdLCAiZXhwIjogMTcwNDc5NTk1MCwgIm5iZiI6IDE2OTYwNjkxMzcsICJpYXQiOiAxNzA0NzA5MTM3LCAianRpIjogIjBERDBfMjNBQkNFQjRfQTFENTAiLCAib2F0IjogMTcwMTMwODIxNSwgInJ0X2V4cCI6IDE3MTkzNDk1MDksICJwZXIiOiAwLCAiaXBfc3ViamVjdCI6ICIxMzUuMTgwLjE5OS4yMzkiLCAiaXBfY29uZmlybWVyIjogIjEzNS4xODAuMTk5LjIzOSIgfQ.9vVEWTygSc6CWsgj5TPQvTCJL4fxcOlF3xDbOvnKobZI_b2FWGw7-Co0gx_2im33h7ofw25Qsb0fp0GzXYUbBg'}  # Replace with your actual cookie

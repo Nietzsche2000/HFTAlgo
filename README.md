@@ -62,7 +62,3 @@ Contributions to improve the script are welcome. Please follow these steps:
 This project is licensed under the [MIT License](LICENSE.md). A copy of the license is provided in the repository.
 
 ---
-
-**Note**: Keep your README updated. This file is a starting point and should evolve with your project. Use clear and concise language to make it accessible to a wide audience. Happy Coding!
-
-*For more information or to report issues, please visit the [GitHub Repository](Your GitHub Repository Link).*

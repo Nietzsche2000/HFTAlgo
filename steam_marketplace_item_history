@@ -72,6 +72,26 @@ def fetch_price_history(game_id, item_name, cookie):
 
     return df
 
+def preprocess_and_merge_csgo_tables(df1, df2):
+    """
+    Preprocesses and merges two dataframes based on the year and month.
+    The first dataframe is expected to have a 'Month' column with some non-standard date formats.
+    The second dataframe is expected to have a 'date' column in a standard format like '2018-12-06'.
+    """
+    # Remove non-standard date formats from 'Month' column
+    df1 = df1[df1['Month'].str.contains(r'\b\d{4}\b')]  # Keeping rows with a four-digit year
+
+    # Convert 'Month' column to datetime format
+    df1['YearMonth'] = pd.to_datetime(df1['Month']).dt.to_period('M')
+
+    # Convert 'date' column to datetime format and extract year-month
+    df2['YearMonth'] = pd.to_datetime(df2['date']).dt.to_period('M')
+
+    # Merging the two dataframes based on the YearMonth column
+    merged_df = pd.merge(df1, df2, on='YearMonth', how='outer')
+
+    return merged_df
+
 # Main function and other parts of the script remain unchanged.
 
 def main():
@@ -88,15 +108,30 @@ def main():
             price_data['item_name'] = item_name
             all_data.append(price_data)
 
+    # Fetch and preprocess the CS:GO data
     full_data = pd.concat(all_data)
     full_data.to_csv(f'{game_id}_market_data.csv', index=False)
     print("Data collection complete. CSV file created.")
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    filename = f"{current_date}_csgo_marketplace.csv"
-    full_path = f"C:\\Users\\ryans\\{filename}"
 
-    full_data.to_csv(full_path, index=False)
-    print(f"Data collection complete. CSV file created at {full_path}")
+    # Define the file paths
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    marketplace_filename = f"{current_date}_csgo_marketplace.csv"
+    marketplace_full_path = f"C:\\Users\\ryans\\{marketplace_filename}"
+    full_data.to_csv(marketplace_full_path, index=False)
+    print(f"Data collection complete. CSV file created at {marketplace_full_path}")
+
+    # Load the second CSV file
+    month_play_filename = "C:\\Users\\ryans\\Downloads\\csgo_month_play (1).csv"
+    month_play_data = pd.read_csv(month_play_filename)
+
+    # Preprocess and merge the tables
+    combined_data = preprocess_and_merge_csgo_tables(month_play_data,full_data)
+
+    # Save the combined data to a CSV file
+    combined_filename = f"{current_date}_combined_csgo_data.csv"
+    combined_full_path = f"C:\\Users\\ryans\\{combined_filename}"
+    combined_data.to_csv(combined_full_path, index=False)
+    print(f"Combined data saved to {combined_full_path}")
 
 if __name__ == "__main__":
     main()

@@ -13,13 +13,18 @@ class Data:
         return
 
     def get_training_data(self):
-        return self.data['X'], self.data['Y']
+        pass
 
     def get_test_data(self):
-        return self.data
+        pass
 
     def get_prediction_data(self):
-        return self.data
+        pass
 
     def compare_with_test(self, y_preds):
-        return
+        pass
+
+class MarketData(Data):
+
+    def get_training_data(self):
+        return self.data['']

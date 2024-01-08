@@ -1,6 +1,3 @@
-
-# ReadMe for GitHub Project: Steam Market Data Analysis Script
-
 ## Table of Contents
 1. [Project Description](#project-description)
 2. [Features](#features)

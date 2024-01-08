@@ -2,6 +2,7 @@ import requests
 import json
 import pandas as pd
 from datetime import datetime
+from datetime import timedelta
 
 def get_all_item_names(game_id, cookie):
     item_names = []
@@ -42,18 +43,52 @@ def fetch_price_history(game_id, item_name, cookie):
     if not data or 'prices' not in data:
         return None
 
-    price_history = [{'date': datetime.strptime(entry[0][0:11], '%b %d %Y'), 
-                      'price': float(entry[1]), 
-                      'volume': int(entry[2])} 
-                     for entry in data['prices']]
-    print("current: " + item_name);
-    return pd.DataFrame(price_history)
+    price_history = []
+    for entry in data['prices']:
+        date_obj = datetime.strptime(entry[0][0:11], '%b %d %Y')
+        day_of_week = date_obj.strftime('%a').upper()  # Get the day of the week in uppercase
+        price_history.append({
+            'date': date_obj, 
+            'day_of_week': day_of_week,  # Add the day of the week to the dictionary
+            'price': float(entry[1]), 
+            'volume': int(entry[2])
+        })
+    # Convert to DataFrame
+    df = pd.DataFrame(price_history)
 
+    # Sort the DataFrame by date
+    df.sort_values(by='date', inplace=True)
+
+    # Initialize a column for elasticity
+    df['elasticity'] = 0
+
+    for index, row in df.iterrows():
+        # Define the start date for the 60-day window
+        start_date = row['date'] - timedelta(days=60)
+
+        # Filter data for this 60-day window
+        data_60_days = df[(df['date'] <= row['date']) & (df['date'] > start_date)]
+
+        if not data_60_days.empty:
+            # Calculate average price and volume for the 60-day window
+            avg_price_60_days = data_60_days['price'].mean()
+            avg_volume_60_days = data_60_days['volume'].mean()
+
+            # Compute percentage changes compared to the current day
+            percentage_change_price = ((row['price'] - avg_price_60_days) / avg_price_60_days) * 100 if avg_price_60_days != 0 else 0
+            percentage_change_volume = ((row['volume'] - avg_volume_60_days) / avg_volume_60_days) * 100 if avg_volume_60_days != 0 else 0
+
+            # Calculate elasticity for the current day
+            elasticity = percentage_change_volume / percentage_change_price if percentage_change_price != 0 else 0
+            df.at[index, 'elasticity'] = elasticity
+
+    print("current: " + item_name)
+    return df
 def main():
     cookie = {'steamLoginSecure': '76561198285682461%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MERENF8yMzkwMURBQ19GMUMwOCIsICJzdWIiOiAiNzY1NjExOTgyODU2ODI0NjEiLCAiYXVkIjogWyAid2ViIiBdLCAiZXhwIjogMTcwNDc5NTk1MCwgIm5iZiI6IDE2OTYwNjkxMzcsICJpYXQiOiAxNzA0NzA5MTM3LCAianRpIjogIjBERDBfMjNBQkNFQjRfQTFENTAiLCAib2F0IjogMTcwMTMwODIxNSwgInJ0X2V4cCI6IDE3MTkzNDk1MDksICJwZXIiOiAwLCAiaXBfc3ViamVjdCI6ICIxMzUuMTgwLjE5OS4yMzkiLCAiaXBfY29uZmlybWVyIjogIjEzNS4xODAuMTk5LjIzOSIgfQ.9vVEWTygSc6CWsgj5TPQvTCJL4fxcOlF3xDbOvnKobZI_b2FWGw7-Co0gx_2im33h7ofw25Qsb0fp0GzXYUbBg'}  # Replace with your actual cookie
     game_id = '730'  # Example: Counter-Strike: Global Offensive
 
-    all_items = get_all_item_names(game_id, cookie)
+    all_items = ['StatTrak™ Desert Eagle | Bronze Deco (Battle-Scarred)']
     all_data = []
 
     for item_name in all_items:

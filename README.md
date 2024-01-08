@@ -48,7 +48,7 @@ Contributions to improve the script are welcome. Please follow these steps:
 5. Create a new Pull Request.
 
 ## Credits
-- **Author**: [Your Name]
+- **Author**: [Ryan Soohoo, Monishwaren Maheswaran]
 - **Contributors**: List of contributors or link to the contributors page.
 - For tutorials or external resources used, provide appropriate acknowledgments and links.
 

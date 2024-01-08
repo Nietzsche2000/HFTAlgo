@@ -50,6 +50,7 @@ Contributions to improve the script are welcome. Please follow these steps:
 
 ## Credits
 - **Author**: [Ryan Soohoo, Monishwaren Maheswaran]
+- Following: https://www.blakeporterneuro.com/learning-python-project-3-scrapping-data-from-steams-community-market/
 
 ## License
 This project is licensed under the [MIT License](LICENSE.md). A copy of the license is provided in the repository.

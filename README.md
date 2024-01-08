@@ -46,14 +46,6 @@ item_name = 'AWP | Neo-Noir (Factory New)'
 main()
 ```
 
-## Contributing
-Contributions to improve the script are welcome. Please follow these steps:
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Make your changes and commit them (`git commit -am 'Add some feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Create a new Pull Request.
-
 ## Credits
 - **Author**: [Ryan Soohoo, Monishwaren Maheswaran]
 - Following: https://www.blakeporterneuro.com/learning-python-project-3-scrapping-data-from-steams-community-market/

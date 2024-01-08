@@ -6,9 +6,6 @@
 5. [Credits](#credits)
 6. [License](#license)
 
-## Project Title
-Steam Market Data Analysis Script
-
 ## Description
 This Python script is dedicated to fetching, processing, and analyzing market data for Counter-Strike: Global Offensive (CS:GO) items on Steam. It includes functionalities like calculating price elasticity, percent changes, merging datasets, and updating data with U.S. holiday information.
 

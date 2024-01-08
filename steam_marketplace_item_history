@@ -3,6 +3,7 @@ import json
 import pandas as pd
 from datetime import datetime, timedelta
 from pandas.tseries.holiday import USFederalHolidayCalendar
+import os
 
 def calculate_elasticity(df, start_date, end_date):
     data_window = df[(df['date'] <= end_date) & (df['date'] > start_date)]
@@ -41,6 +42,7 @@ def update_dataframe(df, holidays):
 
         # US Holiday
         df.at[index, 'US_Holiday'] = row['date'] in holidays
+
 
 def fetch_price_history(game_id, item_name, cookie):
     item_name_encoded = requests.utils.quote(item_name)
@@ -95,7 +97,8 @@ def preprocess_and_merge_csgo_tables(df1, df2):
 # Main function and other parts of the script remain unchanged.
 
 def main():
-    cookie = {'steamLoginSecure': '76561198285682461%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MERENF8yMzkwMURBQ19GMUMwOCIsICJzdWIiOiAiNzY1NjExOTgyODU2ODI0NjEiLCAiYXVkIjogWyAid2ViIiBdLCAiZXhwIjogMTcwNDc5NTk1MCwgIm5iZiI6IDE2OTYwNjkxMzcsICJpYXQiOiAxNzA0NzA5MTM3LCAianRpIjogIjBERDBfMjNBQkNFQjRfQTFENTAiLCAib2F0IjogMTcwMTMwODIxNSwgInJ0X2V4cCI6IDE3MTkzNDk1MDksICJwZXIiOiAwLCAiaXBfc3ViamVjdCI6ICIxMzUuMTgwLjE5OS4yMzkiLCAiaXBfY29uZmlybWVyIjogIjEzNS4xODAuMTk5LjIzOSIgfQ.9vVEWTygSc6CWsgj5TPQvTCJL4fxcOlF3xDbOvnKobZI_b2FWGw7-Co0gx_2im33h7ofw25Qsb0fp0GzXYUbBg'}  # Replace with your actual cookie
+    
+    cookie = {'steamLoginSecure': '76561198285682461%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MERENF8yMzkwMURBQ19GMUMwOCIsICJzdWIiOiAiNzY1NjExOTgyODU2ODI0NjEiLCAiYXVkIjogWyAid2ViIiBdLCAiZXhwIjogMTcwNDc5NTk1MCwgIm5iZiI6IDE2OTYwNjkxMzcsICJpYXQiOiAxNzA0NzA5MTM3LCAianRpIjogIjBERDBfMjNBQkNFQjRfQTFENTAiLCAib2F0IjogMTcwMTMwODIxNSwgInJ0X2V4cCI6IDE3MTkzNDk1MDksICJwZXIiOiAwLCAiaXBfc3ViamVjdCI6ICIxMzUuMTgwLjE5OS4yMzkiLCAiaXBfY29uZmlybWVyIjogIjEzNS4xODAuMTk5LjIzOSIgfQ.9vVEWTygSc6CWsgj5TPQvTCJL4fxcOlF3xDbOvnKobZI_b2FWGw7-Co0gx_2im33h7ofw25Qsb0fp0GzXYUbBg'}
     game_id = '730'  # Example: Counter-Strike: Global Offensive
 
     all_items = ['AWP | Neo-Noir (Factory New)']
@@ -110,26 +113,26 @@ def main():
 
     # Fetch and preprocess the CS:GO data
     full_data = pd.concat(all_data)
-    full_data.to_csv(f'{game_id}_market_data.csv', index=False)
-    print("Data collection complete. CSV file created.")
 
-    # Define the file paths
+   # Save the data in the same directory as the script
     current_date = datetime.now().strftime("%Y-%m-%d")
+    current_file = os.path.abspath(os.path.dirname(__file__)) #older/folder2/scripts_folder
+
     marketplace_filename = f"{current_date}_csgo_marketplace.csv"
-    marketplace_full_path = f"C:\\Users\\ryans\\{marketplace_filename}"
+    marketplace_full_path = os.path.join(current_file, marketplace_filename)
     full_data.to_csv(marketplace_full_path, index=False)
     print(f"Data collection complete. CSV file created at {marketplace_full_path}")
 
     # Load the second CSV file
-    month_play_filename = "C:\\Users\\ryans\\Downloads\\csgo_month_play (1).csv"
+    month_play_filename = os.path.join(current_file, 'csgo_month_play (1).csv')
     month_play_data = pd.read_csv(month_play_filename)
 
     # Preprocess and merge the tables
-    combined_data = preprocess_and_merge_csgo_tables(month_play_data,full_data)
+    combined_data = preprocess_and_merge_csgo_tables(month_play_data, full_data)
 
-    # Save the combined data to a CSV file
+    # Save the combined data to a CSV file in the same directory
     combined_filename = f"{current_date}_combined_csgo_data.csv"
-    combined_full_path = f"C:\\Users\\ryans\\{combined_filename}"
+    combined_full_path = os.path.join(current_file, combined_filename)
     combined_data.to_csv(combined_full_path, index=False)
     print(f"Combined data saved to {combined_full_path}")
 

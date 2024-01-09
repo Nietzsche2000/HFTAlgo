@@ -101,7 +101,7 @@ def main():
     cookie = {'steamLoginSecure': '76561198285682461%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MERENF8yMzkwMURBQ19GMUMwOCIsICJzdWIiOiAiNzY1NjExOTgyODU2ODI0NjEiLCAiYXVkIjogWyAid2ViIiBdLCAiZXhwIjogMTcwNDc5NTk1MCwgIm5iZiI6IDE2OTYwNjkxMzcsICJpYXQiOiAxNzA0NzA5MTM3LCAianRpIjogIjBERDBfMjNBQkNFQjRfQTFENTAiLCAib2F0IjogMTcwMTMwODIxNSwgInJ0X2V4cCI6IDE3MTkzNDk1MDksICJwZXIiOiAwLCAiaXBfc3ViamVjdCI6ICIxMzUuMTgwLjE5OS4yMzkiLCAiaXBfY29uZmlybWVyIjogIjEzNS4xODAuMTk5LjIzOSIgfQ.9vVEWTygSc6CWsgj5TPQvTCJL4fxcOlF3xDbOvnKobZI_b2FWGw7-Co0gx_2im33h7ofw25Qsb0fp0GzXYUbBg'}
     game_id = '730'  # Example: Counter-Strike: Global Offensive
 
-    all_items = ['AWP | Neo-Noir (Factory New)']
+    all_items = ["Dreams & Nightmares Case"]
     all_data = []
 
     for item_name in all_items:

@@ -59,11 +59,14 @@ print(X_train.shape, y_train.shape)
 class AirModel(nn.Module):
     def __init__(self):
         super().__init__()
-        self.lstm = nn.LSTM(input_size=1, hidden_size=50, num_layers=1, batch_first=True)
-        self.linear = nn.Linear(50, 1)
+        self.lstm = nn.LSTM(input_size=1, hidden_size=50, num_layers=3, batch_first=True)
+        self.linear = nn.Linear(50, 50)
+        self.linear2 = nn.Linear(50, 1)
     def forward(self, x):
         x, _ = self.lstm(x)
         x = self.linear(x)
+        x = nn.functional.tanh(x)
+        x = self.linear2(x)
         return x
 
 

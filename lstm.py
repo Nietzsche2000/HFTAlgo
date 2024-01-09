@@ -1,99 +1,117 @@
 import torch
 import torch.nn as nn
-import numpy as np
-from torch.utils.data import DataLoader, TensorDataset
-import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-
-# DEVICE CONFIGURATION
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-class DataPreprocessor:
-    def __init__(self, file_path):
-        self.data = pd.read_csv(file_path)
-
-    def preprocess(self):
-        # CONVERT DATE TO ORDINAL
-        self.data['date'] = pd.to_datetime(self.data['date'])
-        self.data['date'] = self.data['date'].map(pd.Timestamp.toordinal)
-
-        # ASSUMING 'item_name' IS THE COLUMN CAUSING ISSUES
-        # EXCLUDING 'item_name' FROM DATA
-        # self.data = self.data.drop(columns=['item_name'])
-
-        # NORMALIZE THE FEATURES
-        scaler = MinMaxScaler(feature_range=(-1, 1))
-        features_to_scale = ['date', 'price', 'volume', 'elasticity', 'percent_change_7_days']
-        self.data[features_to_scale] = scaler.fit_transform(self.data[features_to_scale])
-        return self.data, scaler
+import numpy as np
+from torch.utils.data import Dataset, DataLoader
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
 
 
-# LSTM MODEL
-class LSTM(nn.Module):
-    def __init__(self, input_size, hidden_layer_size, num_layers, output_size):
-        super(LSTM, self).__init__()
+def preprocess_data(data, feature_cols, target_col):
+    # Normalizing the dataset
+    scaler = MinMaxScaler(feature_range=(-1, 1))
+    scaled_data = scaler.fit_transform(data[feature_cols])
+
+    # Creating sequences for LSTM
+    X, y = [], []
+    for i in range(len(scaled_data) - 1):
+        X.append(scaled_data[i, :])
+        y.append(scaled_data[i + 1, target_col])
+
+    return np.array(X), np.array(y)
+
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_layer_size, output_size):
+        super(LSTMModel, self).__init__()
         self.hidden_layer_size = hidden_layer_size
-        self.lstm = nn.LSTM(input_size, hidden_layer_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size, hidden_layer_size)
         self.linear = nn.Linear(hidden_layer_size, output_size)
+        self.hidden_cell = (torch.zeros(1, 1, self.hidden_layer_size),
+                            torch.zeros(1, 1, self.hidden_layer_size))
 
     def forward(self, input_seq):
-        lstm_out, _ = self.lstm(input_seq.view(len(input_seq), 1, -1))
+        lstm_out, self.hidden_cell = self.lstm(input_seq.view(len(input_seq), 1, -1), self.hidden_cell)
         predictions = self.linear(lstm_out.view(len(input_seq), -1))
         return predictions[-1]
 
 
-# TRAINING THE MODEL
-def train_model(model, train_loader, num_epochs):
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    for epoch in range(num_epochs):
-        for seq, labels in train_loader:
+def train_model(model, train_data, learning_rate, epochs):
+    loss_function = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    for epoch in range(epochs):
+        for seq, labels in train_data:
             optimizer.zero_grad()
+            model.hidden_cell = (torch.zeros(1, 1, model.hidden_layer_size),
+                                 torch.zeros(1, 1, model.hidden_layer_size))
             y_pred = model(seq)
-            single_loss = criterion(y_pred, labels)
+            single_loss = loss_function(y_pred, labels)
             single_loss.backward()
             optimizer.step()
-        if epoch % 25 == 1:
-            print(f'Epoch {epoch} Loss: {single_loss.item()}')
+
+        if epoch % 25 == 0:
+            print(f'epoch {epoch} loss: {single_loss.item()}')
+    return model
 
 
-# MAIN SCRIPT
-if __name__ == "__main__":
-    # DATA PREPARATION
-    data_preprocessor = DataPreprocessor('730_market_data.csv')
-    data, scaler = data_preprocessor.preprocess()
-    X = data[['date', 'volume', 'elasticity', 'percent_change_7_days']].values
-    y = data['price'].values
-    X = torch.tensor(X, dtype=torch.float32).to(device)
-    y = torch.tensor(y, dtype=torch.float32).to(device)
-    train_data = TensorDataset(X, y)
-    train_loader = DataLoader(dataset=train_data, batch_size=64, shuffle=True)
-
-    # MODEL INITIALIZATION
-    model = LSTM(input_size=5, hidden_layer_size=100, num_layers=1, output_size=1).to(device)
-    train_model(model, train_loader, num_epochs=100)
-
-    # PREDICTIONS AND PLOTTING
+def predict(model, input_data, feature_cols):
     model.eval()
-    predictions = []
     with torch.no_grad():
-        for seq in X:
-            y_pred = model(seq.view(1, -1))
-            predictions.append(y_pred.cpu().numpy())
-    predictions = np.array(predictions)
-    actual_prices = scaler.inverse_transform(data[['price']])
-    predicted_prices = scaler.inverse_transform(np.concatenate((data.drop('price', axis=1), predictions), axis=1))[:,
-                       -1]
+        input_data = torch.FloatTensor(input_data).view(-1, 1, len(feature_cols))
+        prediction = model(input_data)
+        return prediction.item()
 
-    plt.figure(figsize=(15, 7))
-    plt.plot(data['date'], actual_prices, label='Actual Price')
-    plt.plot(data['date'], predicted_prices, label='Predicted Price', color='red')
-    plt.title('Date vs Price: Actual and Predicted')
-    plt.xlabel('Date')
+
+def plot_predictions(actual, predicted):
+    plt.figure(figsize=(10,6))
+    plt.plot(actual, label='Actual Price')
+    plt.plot(predicted, label='Predicted Price')
+    plt.title('Price Prediction on Training Data')
+    plt.xlabel('Time')
     plt.ylabel('Price')
     plt.legend()
-    plt.grid(visible=True)
     plt.show()
+
+
+def main():
+    # Load and preprocess data
+    data = pd.read_csv('2024-01-08_csgo_marketplace.csv')
+    feature_cols = ['price', 'volume', 'elasticity', 'percent_change_7_days', 'percent_change_1_day']
+    target_col = data.columns.get_loc('price')
+    X, y = preprocess_data(data, feature_cols, target_col)
+
+    # Define model parameters
+    input_size = len(feature_cols)
+    hidden_layer_size = 50
+    output_size = 1
+    learning_rate = 0.001
+    epochs = 150
+
+    # Convert to PyTorch tensors
+    X_tensor = torch.FloatTensor(X)
+    y_tensor = torch.FloatTensor(y)
+
+    # Create LSTM model
+    model = LSTMModel(input_size, hidden_layer_size, output_size)
+
+    # Train the model
+    train_data = DataLoader([(X_tensor[i], y_tensor[i]) for i in range(len(X_tensor))], batch_size=1, shuffle=False)
+    model = train_model(model, train_data, learning_rate, epochs)
+
+    # Make predictions on the training data
+    model.eval()
+    predicted_prices = []
+    with torch.no_grad():
+        for i in range(len(X_tensor)):
+            model.hidden_cell = (torch.zeros(1, 1, model.hidden_layer_size),
+                                 torch.zeros(1, 1, model.hidden_layer_size))
+            predicted_prices.append(model(X_tensor[i].view(-1, 1, input_size)).item())
+
+    # Plot predictions against actual data
+    actual_prices = data['price'][
+                    1:].values  # Excluding the first value as we start predicting from the second data point
+    plot_predictions(actual_prices, predicted_prices)
+
+
+if __name__ == "__main__":
+    main()

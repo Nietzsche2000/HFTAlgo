@@ -1,117 +1,135 @@
+import matplotlib.pyplot as plt
+import pandas as pd
 import torch
 import torch.nn as nn
-import pandas as pd
+
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import MinMaxScaler
-import matplotlib.pyplot as plt
+import torch.optim as optim
+import torch.utils.data as data
 
+df = pd.read_csv('2024-01-08_csgo_marketplace.csv')
+timeseries = df[['price']].values.astype('float32')
 
-def preprocess_data(data, feature_cols, target_col):
-    # Normalizing the dataset
-    scaler = MinMaxScaler(feature_range=(-1, 1))
-    scaled_data = scaler.fit_transform(data[feature_cols])
+# plt.plot(timeseries)
+# plt.show()
 
-    # Creating sequences for LSTM
+# train-test split for time series
+train_size = int(len(timeseries) * 0.80)
+test_size = len(timeseries) - train_size
+train, test = timeseries[:train_size], timeseries[train_size:]
+
+def create_dataset(dataset, lookback):
+    """Transform a time series into a prediction dataset
+
+    Args:
+        dataset: A numpy array of time series, first dimension is the time steps
+        lookback: Size of window for prediction
+    """
     X, y = [], []
-    for i in range(len(scaled_data) - 1):
-        X.append(scaled_data[i, :])
-        y.append(scaled_data[i + 1, target_col])
+    for i in range(len(dataset) - lookback):
+        feature = dataset[i:i + lookback]
+        target = dataset[i + 1:i + lookback + 1]
+        X.append(feature)
+        y.append(target)
+    return torch.tensor(X), torch.tensor(y)
 
-    return np.array(X), np.array(y)
-
-class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_layer_size, output_size):
-        super(LSTMModel, self).__init__()
-        self.hidden_layer_size = hidden_layer_size
-        self.lstm = nn.LSTM(input_size, hidden_layer_size)
-        self.linear = nn.Linear(hidden_layer_size, output_size)
-        self.hidden_cell = (torch.zeros(1, 1, self.hidden_layer_size),
-                            torch.zeros(1, 1, self.hidden_layer_size))
-
-    def forward(self, input_seq):
-        lstm_out, self.hidden_cell = self.lstm(input_seq.view(len(input_seq), 1, -1), self.hidden_cell)
-        predictions = self.linear(lstm_out.view(len(input_seq), -1))
-        return predictions[-1]
-
-
-def train_model(model, train_data, learning_rate, epochs):
-    loss_function = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-    for epoch in range(epochs):
-        for seq, labels in train_data:
-            optimizer.zero_grad()
-            model.hidden_cell = (torch.zeros(1, 1, model.hidden_layer_size),
-                                 torch.zeros(1, 1, model.hidden_layer_size))
-            y_pred = model(seq)
-            single_loss = loss_function(y_pred, labels)
-            single_loss.backward()
-            optimizer.step()
-
-        if epoch % 25 == 0:
-            print(f'epoch {epoch} loss: {single_loss.item()}')
-    return model
+# def create_dataset_test(dataset, lookback, forward):
+#     """Transform a time series into a prediction dataset
+#
+#     Args:
+#         dataset: A numpy array of time series, first dimension is the time steps
+#         lookback: Size of window for prediction
+#     """
+#     X, y = [], []
+#     for i in range(len(dataset) - lookback):
+#         feature = dataset[i:i + lookback]
+#         target = dataset[i + 1:i + lookback + 1]
+#         X.append(feature)
+#         y.append(target)
+#     return torch.tensor(X), torch.tensor(y)
 
 
-def predict(model, input_data, feature_cols):
+lookback = 5
+X_train, y_train = create_dataset(train, lookback)
+X_test, y_test = create_dataset(test, lookback)
+print(X_train.shape, y_train.shape)
+# print(X_test.shape, y_test.shape)
+
+
+class AirModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size=1, hidden_size=50, num_layers=1, batch_first=True)
+        self.linear = nn.Linear(50, 1)
+    def forward(self, x):
+        x, _ = self.lstm(x)
+        x = self.linear(x)
+        return x
+
+
+model = AirModel()
+optimizer = optim.Adam(model.parameters())
+loss_fn = nn.MSELoss()
+loader = data.DataLoader(data.TensorDataset(X_train, y_train), shuffle=True, batch_size=8)
+
+n_epochs = 200
+for epoch in range(n_epochs):
+    model.train()
+    for X_batch, y_batch in loader:
+        y_pred = model(X_batch)
+        loss = loss_fn(y_pred, y_batch)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    # Validation
+    if epoch % 100 != 0:
+        continue
     model.eval()
     with torch.no_grad():
-        input_data = torch.FloatTensor(input_data).view(-1, 1, len(feature_cols))
-        prediction = model(input_data)
-        return prediction.item()
+        y_pred = model(X_train)
+        train_rmse = np.sqrt(loss_fn(y_pred, y_train))
+        y_pred = model(X_test)
+        test_rmse = np.sqrt(loss_fn(y_pred, y_test))
+    print("Epoch %d: train RMSE %.4f, test RMSE %.4f" % (epoch, train_rmse, test_rmse))
+    # print("Epoch %d: train RMSE %.4f" % (epoch, train_rmse))
 
 
-def plot_predictions(actual, predicted):
-    plt.figure(figsize=(10,6))
-    plt.plot(actual, label='Actual Price')
-    plt.plot(predicted, label='Predicted Price')
-    plt.title('Price Prediction on Training Data')
-    plt.xlabel('Time')
-    plt.ylabel('Price')
-    plt.legend()
-    plt.show()
 
+with torch.no_grad():
+    # shift train predictions for plotting
+    train_plot = np.ones_like(timeseries) * np.nan
+    y_pred = model(X_train)
+    y_pred = y_pred[:, -1, :]
+    train_plot[lookback:train_size] = model(X_train)[:, -1, :]
+    # shift test predictions for plotting
+    test_plot = np.ones_like(timeseries) * np.nan
+    test_plot[train_size+lookback:len(timeseries)] = model(X_test)[:, -1, :]
+# plot
+plt.plot(timeseries, c='b')
+plt.plot(train_plot, c='r')
+plt.plot(test_plot, c='g')
+plt.show()
 
-def main():
-    # Load and preprocess data
-    data = pd.read_csv('2024-01-08_csgo_marketplace.csv')
-    feature_cols = ['price', 'volume', 'elasticity', 'percent_change_7_days', 'percent_change_1_day']
-    target_col = data.columns.get_loc('price')
-    X, y = preprocess_data(data, feature_cols, target_col)
+# Recursive Prediction
+# with torch.no_grad():
+#     # Start with the last 'lookback' values from the training set
+#     last_train_batch = X_train[-1].view(1, -1, 1)
+#     future_predictions = []
+#     train_plot = np.ones_like(timeseries) * np.nan
+#     train_plot[lookback:train_size] = model(X_train)[:, -1, :]
+#     for i in range(len(test)):
+#         # Predict the next value
+#         y_pred = model(last_train_batch)[:, -1, :]
+#         future_predictions.append(y_pred.item())
+#         # Update the input batch to include the new prediction
+#         last_train_batch = torch.cat((last_train_batch[:, 1:, :], y_pred.view(1, 1, 1)), dim=1)
+#
+#     # Convert predictions list to numpy array
+#     future_predictions = np.array(future_predictions)
 
-    # Define model parameters
-    input_size = len(feature_cols)
-    hidden_layer_size = 50
-    output_size = 1
-    learning_rate = 0.001
-    epochs = 150
-
-    # Convert to PyTorch tensors
-    X_tensor = torch.FloatTensor(X)
-    y_tensor = torch.FloatTensor(y)
-
-    # Create LSTM model
-    model = LSTMModel(input_size, hidden_layer_size, output_size)
-
-    # Train the model
-    train_data = DataLoader([(X_tensor[i], y_tensor[i]) for i in range(len(X_tensor))], batch_size=1, shuffle=False)
-    model = train_model(model, train_data, learning_rate, epochs)
-
-    # Make predictions on the training data
-    model.eval()
-    predicted_prices = []
-    with torch.no_grad():
-        for i in range(len(X_tensor)):
-            model.hidden_cell = (torch.zeros(1, 1, model.hidden_layer_size),
-                                 torch.zeros(1, 1, model.hidden_layer_size))
-            predicted_prices.append(model(X_tensor[i].view(-1, 1, input_size)).item())
-
-    # Plot predictions against actual data
-    actual_prices = data['price'][
-                    1:].values  # Excluding the first value as we start predicting from the second data point
-    plot_predictions(actual_prices, predicted_prices)
-
-
-if __name__ == "__main__":
-    main()
+# Plot
+# plt.plot(timeseries, c='b', label='Original Series')
+# plt.plot(np.arange(lookback, train_size), train_plot[lookback:train_size], c='r', label='Training Predictions')
+# plt.plot(np.arange(train_size, len(timeseries)), future_predictions, c='g', label='Future Predictions')
+# plt.legend()
+# plt.show()
